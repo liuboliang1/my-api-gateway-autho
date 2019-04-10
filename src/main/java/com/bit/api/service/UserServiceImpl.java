@@ -1,13 +1,14 @@
 package com.bit.api.service;
 
 import com.bit.api.core.APIMapping;
+import com.bit.api.core.ApiRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 
 @Service
 public class UserServiceImpl {
     // 无缝集成
-    @APIMapping(value = "bit.api.user.getUser",useLogin = true)
+    @APIMapping(value = "bit.api.user.getUser",useLogin = false)
     public UserInfo getUser(Long userId) {
         Assert.notNull(userId);
         UserInfo info = new UserInfo();
@@ -30,8 +31,8 @@ public class UserServiceImpl {
 //
 //    }
 
-    @APIMapping("bit.api.user.getUser2")
-    public UserInfo getUser4(Long userId) {
+    @APIMapping(value = "bit.api.user.getUser2", useLogin = true)
+    public UserInfo getUser4(Long userId, ApiRequest apiRequest) {
         Assert.notNull(userId);
         UserInfo info = new UserInfo();
         info.setName("小明2");
@@ -45,16 +46,5 @@ public class UserServiceImpl {
         return info;
     }
 
-    @APIMapping("bit.api.user.getUser2")
-    public UserInfo getUser2(Long userId) {
-        Assert.notNull(userId);
-
-        UserInfo info = new UserInfo();
-        info.setName("小明2");
-        info.setSex("男");
-        info.setUserId(userId);
-        info.setIdcard("430527198108145443");
-        return info;
-    }
 
 }

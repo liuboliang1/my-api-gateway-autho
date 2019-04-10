@@ -1,7 +1,9 @@
 package com.bit.api.core;
 
 import com.bit.api.common.ApiException;
+import com.bit.api.common.Md5Util;
 import com.bit.api.common.UtilJson;
+import com.bit.api.core.impl.TokenServiceImpl;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +35,9 @@ public class ApiGatewayHand implements InitializingBean, ApplicationContextAware
 
     private ApiStore apiStore;
 
+    //TODO
+    private TokenService tokenService = new TokenServiceImpl();
+
     public ApiGatewayHand() {
         parameterUtil = new LocalVariableTableParameterNameDiscoverer();
     }
@@ -53,12 +58,25 @@ public class ApiGatewayHand implements InitializingBean, ApplicationContextAware
         String params = request.getParameter(PARAMS);
         ApiStore.ApiRunnable apiRunnable = null;
         Object result = null;
-        //1.校验系统参数
+
         try {
+            //1.校验系统参数
             apiRunnable = sysParamsValdate(request);
 
+            //2.构建ApiRequest
+            ApiRequest apiRequest = buildApiRequest(request);
+            if (apiRequest.getAccessToken() != null) {
+                signCheck(apiRequest);
+            }
+
+            if (apiRunnable.getApiMapping().useLogin()) {
+                if (!apiRequest.isLogin()) {
+                    throw new ApiException("009","调用失败：用户未登陆");
+                }
+            }
+
             logger.info("请求接口={" + method + "} 参数=" + params + "");
-            Object[] args = buildParams(apiRunnable, params, request, response);
+            Object[] args = buildParams(apiRunnable, params, request, response, apiRequest);
             result = apiRunnable.run(args);
         }catch (ApiException e) {
             response.setStatus(500);// 封装异常并返回
@@ -75,6 +93,58 @@ public class ApiGatewayHand implements InitializingBean, ApplicationContextAware
         }
         //2.校验业务参数
         returnResult(result, response);
+    }
+
+    /**
+     * 签名验证
+     *  签名规则:md5(secret+method+param+token+timestamp+secret)
+     * @param apiRequest
+     * @return
+     * @throws ApiException
+     */
+    private ApiRequest signCheck(ApiRequest apiRequest) throws ApiException {
+        Token token = tokenService.getToken(apiRequest.getAccessToken());
+        //1. 验证token是否存在
+        if (token == null) {
+            throw new ApiException("验证失败：指定'Token'不存在");
+        }
+        //2.验证token是否过期
+        if (token.getExpiresTime().before(new Date())) {
+            throw new ApiException("验证失败：'Token'过期");
+        }
+
+        if (Math.abs(Long.parseLong(apiRequest.getTimestamp()) - System.currentTimeMillis()) > 1000*60*1000) {
+            throw new ApiException("验证失败：'Token'过期");
+        }
+
+        // 3.签名规则:md5(secret+method+param+token+timestamp+secret)
+        String secret = token.getSecret();
+        String method = apiRequest.getMethodName();
+        String params = apiRequest.getParams();
+        String accessToken = token.getAccessToken();
+        String timestamp = apiRequest.getTimestamp();
+        String sign = Md5Util.MD5(secret + method + params + accessToken + timestamp + secret);
+        if (!sign.toUpperCase().equals(apiRequest.getSign())) {
+            throw new ApiException("验证失败：签名非法");
+        }
+
+        apiRequest.setLogin(true);
+        apiRequest.setMemberId(token.getMemberId());
+
+        return apiRequest;
+    }
+
+    private ApiRequest buildApiRequest(HttpServletRequest request) {
+        ApiRequest apiRequest = new ApiRequest();
+        apiRequest.setAccessToken(request.getParameter("token"));
+        apiRequest.setMethodName(request.getParameter(METHOD));
+        apiRequest.setParams(request.getParameter(PARAMS));
+        apiRequest.seteCode(request.getParameter("eCode"));
+        apiRequest.setuCode(request.getParameter("uCode"));
+        apiRequest.setTimestamp(request.getParameter("timestamp"));
+        apiRequest.setSign(request.getParameter("sign"));
+        apiRequest.setClientIp(request.getRemoteAddr());
+        return apiRequest;
     }
 
     /**
@@ -133,10 +203,11 @@ public class ApiGatewayHand implements InitializingBean, ApplicationContextAware
      * @param params
      * @param request
      * @param response
+     * @param apiRequest
      * @return
      * @throws ApiException
      */
-    private Object[] buildParams(ApiStore.ApiRunnable apiRunnable, String params, HttpServletRequest request, HttpServletResponse response) throws ApiException {
+    private Object[] buildParams(ApiStore.ApiRunnable apiRunnable, String params, HttpServletRequest request, HttpServletResponse response, ApiRequest apiRequest) throws ApiException {
         Map<String, Object> map = null;
         try {
             map = UtilJson.toMap(params);
@@ -162,6 +233,8 @@ public class ApiGatewayHand implements InitializingBean, ApplicationContextAware
         for (int i = 0; i < paramTypes.length; i++) {
             if (paramTypes[i].isAssignableFrom(HttpServletRequest.class)) {
                 args[i] = request;
+            }else if (paramTypes[i].isAssignableFrom(ApiRequest.class)){
+                args[i] = apiRequest;
             }else if (map.containsKey(paramNames.get(i))){
                 try {
                     args[i] = convertJsonToBean(map.get(paramNames.get(i)), paramTypes[i]);
