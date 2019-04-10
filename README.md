@@ -1,37 +1,15 @@
 ## API接口安全机制设计
 
-1. 什么是API网关？
+### 1. 什么是API网关？
 
    API网关是一个轻量的java http 接口组件，可无缝将普通的 Serive 方法转换成 http 接口。并从已下几点来达到提高开发效率与接口质量的目的。
 
    1. 去掉mvc控制器，将http请求直接无缝接入JAVA服务接口
    2. 统一出入参格式
    3. 统一异常规范
-   4. 自动检测服务接口规范
+   4. 自动检测服务接口规范 
 
-​     2、API网关 与普通Http接口实现流程对比
-
- 
-
-**普通Http 接口实现**
-
-![img](file:///C:/Users/lbl/AppData/Local/Temp/msohtmlclip1/01/clip_image002.jpg)
-
- 
-
-**API网关接口实现**
-
-![img](file:///C:/Users/lbl/AppData/Local/Temp/msohtmlclip1/01/clip_image004.jpg)
-
- 
-
- 
-
-3、网关实现流程与技术
-
-详细流程图
-
-![img](file:///C:/Users/lbl/AppData/Local/Temp/msohtmlclip1/01/clip_image006.jpg)
+### 2、网关实现流程与技术
 
 **请求参数说明：**
 
@@ -53,39 +31,28 @@
     
     
 
-### 接口安全的业务需求
+### 3.接口安全的业务需求
 
 **1、接口安全级别分组**
 
-1. 白名单组
-
-2. 黑名单组
-
-3. 黑白名单组
+    1.1 白名单组
+    1.2 黑名单组
+    1.3 黑白名单组
 
 **2、基于Token安全机制认证需求**
 
-1. 登陆鉴权
-
-2. 防止业务参数串改
-
-3. 保护用户敏感信息
-
-4. 防签名伪造
+    1.1 登陆鉴权
+    1.2 防止业务参数串改
+    1.3 保护用户敏感信息
+    1.4 防签名伪造
 
 3、T**oken** **认证机制整体架构**
 
-整体架构分为Token生成与认证两部分：
+### 4.整体架构分为Token生成与认证两部分：
 
 1. Token生成指在登陆成功之后生成 Token 和密钥，并其与用户隐私信息、客户端信息一起存储至Token表,同时返回Token 与Secret 至客户端。
 
 2. Token认证指客户端请求黑名单接口时，认证中心基于Token生成签名
-
- 
-
-![img](file:///C:/Users/lbl/AppData/Local/Temp/msohtmlclip1/01/clip_image008.jpg)
-
- 
 
 **Token表结构说明:**
 
@@ -103,9 +70,6 @@
 | uCode       | varchar(50) | 设备用户标识 |              |
 
  
-
- 
-
 **业务请求具体参数：**
 
 | 名称      | 类型   | 描述                                                     |
@@ -117,9 +81,6 @@
 | timestamp | long   | 请求时间搓，允许与服务端10分钟误差                       |
 
  
-
- 
-
 **签名规则：**
 
 1.已指定顺序拼接字符串 secret+method+param+token+timestamp+secret
@@ -138,41 +99,21 @@
 
 **服务端签名验证的具体流程：**
 
- 
-
-![img](file:///C:/Users/lbl/AppData/Local/Temp/msohtmlclip1/01/clip_image009.gif)
-
- 
-
 ### 基于API网关实现安全机制
-
  
-
- 
-
- 
-
-**签名认证与API网关的整体认证流程**
-
-![img](file:///C:/Users/lbl/AppData/Local/Temp/msohtmlclip1/01/clip_image011.jpg)
-
- 
-
 **两个流程**
 
- 
-
-**Token****生成**
-
-登录成功后插，生成token与secret 保存至数据库。具体实现勿略
-
-**Token** **认证相关解决方案：**
-
-1. 接口如何标识黑白名单？
-
-2. 签名具体验证流程?
-
-3. 用户ID等信息如何传递给业务实现接口？
+    1.Token生成
+    
+        登录成功后插，生成token与secret 保存至数据库。具体实现勿略
+    
+    2.Token认证相关解决方案
+    
+        2.1 接口如何标识黑白名单？
+        
+        2.2 签名具体验证流程?
+        
+        2.3 用户ID等信息如何传递给业务实现接口？
 
  
 
